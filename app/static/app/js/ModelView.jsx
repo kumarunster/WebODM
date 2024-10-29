@@ -77,7 +77,7 @@ class TexturedModelMenu extends React.Component{
         super(props);
 
         this.state = {
-            showTexturedModel: false
+            showTexturedModel: props.showTexturedModel || false
         }
         
         // Translation for sidebar.html
@@ -319,11 +319,13 @@ class ModelView extends React.Component {
         
     viewer.loadGUI(() => {
       viewer.setLanguage('en');
-      $("#menu_tools").next().show();
+      $("#solar_panels").next().show();
+      //$("#menu_tools").next().show();
       viewer.toggleSidebar();
 
       if (this.hasTexturedModel()){
-          window.ReactDOM.render(<TexturedModelMenu toggleTexturedModel={this.toggleTexturedModel}/>, $("#textured_model_button").get(0));
+          this.toggleTexturedModel({target: {checked: true}})
+          window.ReactDOM.render(<TexturedModelMenu showTexturedModel={true} toggleTexturedModel={this.toggleTexturedModel}/>, $("#textured_model_button").get(0));
       }else{
           $("#textured_model").hide();
           $("#textured_model_container").hide();
