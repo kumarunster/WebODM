@@ -23,6 +23,9 @@ git checkout -b solar_panels
 
 6) after import open the 3D Viewer. 3D Viewer should show the roof with some red measurements. On the Side Bar accordeon menu should be visible with "Solar Panels". Click on that Tool will create an Area Measure on the 3D Model.
 
+7) Source code is located under: ./app/static/app/js/vendor/potree/build/potree
+main files is potree.js, check as well my initial commit https://github.com/kumarunster/WebODM/commit/726c23b71e867c404ed41bde770f9fe7263a2aae for changes
+
 ### Target:
 * Modify the Solar Panel Tool in the way, that we can create and place simple rectangles with fixed size (1,11m x 1,76m) on given surfaces.
 * Fix the Remove All button, so that created solar panel objects are removed
