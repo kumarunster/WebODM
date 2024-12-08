@@ -54517,56 +54517,23 @@
 
 			this.name = 'SolarPanel_' + this.constructor.counter;
 			this.points = [];
-			this._showDistances = true;
-			this._showCoordinates = false;
-			this._showArea = false;
-			this._closed = true;
-			this._showAngles = false;
-			this._showCircle = false;
-			this._showHeight = false;
-			this._showEdges = true;
-			this._showAzimuth = false;
+
 			this.maxMarkers = Number.MAX_SAFE_INTEGER;
+			
 
-			this.sphereGeometry = new SphereGeometry(0.4, 10, 10);
-			this.color = new Color(0xff0000);
-
-			this.spheres = [];
-			this.edges = [];
-			this.sphereLabels = [];
-			this.edgeLabels = [];
-			this.angleLabels = [];
-			this.coordinateLabels = [];
-
-			this.heightEdge = createHeightLine();
-			this.heightLabel = createHeightLabel();
-			this.areaLabel = createAreaLabel();
-			this.circleRadiusLabel = createCircleRadiusLabel();
-			this.circleRadiusLine = createCircleRadiusLine();
-			this.circleLine = createCircleLine();
-			this.circleCenter = createCircleCenter();
-
-			this.azimuth = createAzimuth();
-
-			this.add(this.heightEdge);
-			this.add(this.heightLabel);
-			this.add(this.areaLabel);
-			this.add(this.circleRadiusLabel);
-			this.add(this.circleRadiusLine);
-			this.add(this.circleLine);
-			this.add(this.circleCenter);
-
-			this.add(this.azimuth.node);
+			this.rectangleGeometry = new PlaneGeometry(1.11, 1.76);
+			this.color = new Color(0xffff00);
+			this.solarPanels = [];
 
 		}
 
-		createSphereMaterial () {
-			let sphereMaterial = new MeshLambertMaterial({
-				//shading: THREE.SmoothShading,
+		createRectangleMaterial () {
+			let sphereMaterial = new MeshBasicMaterial({
 				color: this.color,
-				depthTest: false,
-				depthWrite: false}
-			);
+				side: DoubleSide,
+				transparent: true,
+				opacity: 0.7,
+			});
 
 			return sphereMaterial;
 		};
@@ -54580,67 +54547,10 @@
 			this.points.push(point);
 
 			// sphere
-			let sphere = new Mesh(this.sphereGeometry, this.createSphereMaterial());
+			let solarPanel = new Mesh(this.rectangleGeometry, this.createRectangleMaterial());
 
-			this.add(sphere);
-			this.spheres.push(sphere);
-
-			{ // edges
-				let lineGeometry = new LineGeometry();
-				lineGeometry.setPositions( [
-						0, 0, 0,
-						0, 0, 0,
-				]);
-
-				let lineMaterial = new LineMaterial({
-					color: 0xff0000, 
-					linewidth: 2, 
-					resolution:  new Vector2(1000, 1000),
-				});
-
-				lineMaterial.depthTest = false;
-
-				let edge = new Line2(lineGeometry, lineMaterial);
-				edge.visible = true;
-
-				this.add(edge);
-				this.edges.push(edge);
-			}
-
-			{ // edge labels
-				let edgeLabel = new TextSprite();
-				edgeLabel.setBorderColor({r: 0, g: 0, b: 0, a: 1.0});
-				edgeLabel.setBackgroundColor({r: 0, g: 0, b: 0, a: 1.0});
-				edgeLabel.material.depthTest = false;
-				edgeLabel.visible = false;
-				edgeLabel.fontsize = 16;
-				this.edgeLabels.push(edgeLabel);
-				this.add(edgeLabel);
-			}
-
-			{ // angle labels
-				let angleLabel = new TextSprite();
-				angleLabel.setBorderColor({r: 0, g: 0, b: 0, a: 1.0});
-				angleLabel.setBackgroundColor({r: 0, g: 0, b: 0, a: 1.0});
-				angleLabel.fontsize = 16;
-				angleLabel.material.depthTest = false;
-				angleLabel.material.opacity = 1;
-				angleLabel.visible = false;
-				this.angleLabels.push(angleLabel);
-				this.add(angleLabel);
-			}
-
-			{ // coordinate labels
-				let coordinateLabel = new TextSprite();
-				coordinateLabel.setBorderColor({r: 0, g: 0, b: 0, a: 1.0});
-				coordinateLabel.setBackgroundColor({r: 0, g: 0, b: 0, a: 1.0});
-				coordinateLabel.fontsize = 16;
-				coordinateLabel.material.depthTest = false;
-				coordinateLabel.material.opacity = 1;
-				coordinateLabel.visible = false;
-				this.coordinateLabels.push(coordinateLabel);
-				this.add(coordinateLabel);
-			}
+			this.add(solarPanel);
+			this.solarPanels.push(solarPanel);
 
 			{ // Event Listeners
 				let drag = (e) => {
@@ -54652,7 +54562,7 @@
 						{pickClipped: true});
 
 					if (I) {
-						let i = this.spheres.indexOf(e.drag.object);
+						let i = this.solarPanels.indexOf(e.drag.object);
 						if (i !== -1) {
 							let point = this.points[i];
 							
@@ -54673,7 +54583,7 @@
 				};
 
 				let drop = e => {
-					let i = this.spheres.indexOf(e.drag.object);
+					let i = this.solarPanels.indexOf(e.drag.object);
 					if (i !== -1) {
 						this.dispatchEvent({
 							'type': 'marker_dropped',
@@ -54686,16 +54596,16 @@
 				let mouseover = (e) => e.object.material.emissive.setHex(0x888888);
 				let mouseleave = (e) => e.object.material.emissive.setHex(0x000000);
 
-				sphere.addEventListener('drag', drag);
-				sphere.addEventListener('drop', drop);
-				sphere.addEventListener('mouseover', mouseover);
-				sphere.addEventListener('mouseleave', mouseleave);
+				solarPanel.addEventListener('drag', drag);
+				solarPanel.addEventListener('drop', drop);
+				solarPanel.addEventListener('mouseover', mouseover);
+				solarPanel.addEventListener('mouseleave', mouseleave);
 			}
 
 			let event = {
 				type: 'marker_added',
 				measurement: this,
-				sphere: sphere
+				solarPanel: solarPanel
 			};
 			this.dispatchEvent(event);
 
@@ -54705,20 +54615,9 @@
 		removeMarker (index) {
 			this.points.splice(index, 1);
 
-			this.remove(this.spheres[index]);
+			this.remove(this.solarPanels[index]);
 
-			let edgeIndex = (index === 0) ? 0 : (index - 1);
-			this.remove(this.edges[edgeIndex]);
-			this.edges.splice(edgeIndex, 1);
-
-			this.remove(this.edgeLabels[edgeIndex]);
-			this.edgeLabels.splice(edgeIndex, 1);
-			this.coordinateLabels.splice(index, 1);
-
-			this.remove(this.angleLabels[index]);
-			this.angleLabels.splice(index, 1);
-
-			this.spheres.splice(index, 1);
+			this.solarPanels.splice(index, 1);
 
 			this.update();
 
@@ -54754,102 +54653,13 @@
 			this.update();
 		};
 
-		getArea () {
-			let area = 0;
-			let j = this.points.length - 1;
-			for (let i = 0; i < this.points.length; i++) {
-				let p0 = this.points[0].position;
-				let p1 = this.points[i].position;
-				let p2 = this.points[j].position;
-				let a = (p2.y - p0.y) * (p1.z - p0.z) - (p2.z - p0.z) * (p1.y - p0.y);
-				let b = (p2.x - p0.x) * (p1.z - p0.z) - (p2.z - p0.z) * (p1.x - p0.x);
-				let c = (p2.x - p0.x) * (p1.y - p0.y) - (p2.y - p0.y) * (p1.x - p0.x);
-				area += Math.sqrt(a * a + b * b + c * c);
-				j = i;
-			}
-			return Math.abs(area / 2);
-		};
-
-		getTotalDistance () {
-			if (this.points.length === 0) {
-				return 0;
-			}
-
-			let distance = 0;
-
-			for (let i = 1; i < this.points.length; i++) {
-				let prev = this.points[i - 1].position;
-				let curr = this.points[i].position;
-				let d = prev.distanceTo(curr);
-
-				distance += d;
-			}
-
-			if (this.closed && this.points.length > 1) {
-				let first = this.points[0].position;
-				let last = this.points[this.points.length - 1].position;
-				let d = last.distanceTo(first);
-
-				distance += d;
-			}
-
-			return distance;
-		}
-
-		getAngleBetweenLines (cornerPoint, point1, point2) {
-			let v1 = new Vector3().subVectors(point1.position, cornerPoint.position);
-			let v2 = new Vector3().subVectors(point2.position, cornerPoint.position);
-
-			// avoid the error printed by threejs if denominator is 0
-			const denominator = Math.sqrt( v1.lengthSq() * v2.lengthSq() );
-			if(denominator === 0){
-				return 0;
-			}else {
-				return v1.angleTo(v2);
-			}
-		};
-
-		getAngle (index) {
-			if (this.points.length < 3 || index >= this.points.length) {
-				return 0;
-			}
-
-			let previous = (index === 0) ? this.points[this.points.length - 1] : this.points[index - 1];
-			let point = this.points[index];
-			let next = this.points[(index + 1) % (this.points.length)];
-
-			return this.getAngleBetweenLines(point, previous, next);
-		}
-
-		// updateAzimuth(){
-		// 	// if(this.points.length !== 2){
-		// 	// 	return;
-		// 	// }
-
-		// 	// const azimuth = this.azimuth;
-
-		// 	// const [p0, p1] = this.points;
-
-		// 	// const r = p0.position.distanceTo(p1.position);
-			
-		// }
-
 		update () {
 			if (this.points.length === 0) {
 				return;
 			} else if (this.points.length === 1) {
 				let point = this.points[0];
 				let position = point.position;
-				this.spheres[0].position.copy(position);
-
-				{ // coordinate labels
-					let coordinateLabel = this.coordinateLabels[0];
-					
-					let msg = position.toArray().map(p => Utils.addCommas(p.toFixed(2))).join(" / ");
-					coordinateLabel.setText(msg);
-
-					coordinateLabel.visible = this.showCoordinates;
-				}
+				this.solarPanels[0].position.copy(position);
 
 				return;
 			}
@@ -54872,204 +54682,21 @@
 				let nextPoint = this.points[nextIndex];
 				let previousPoint = this.points[previousIndex];
 
-				let sphere = this.spheres[index];
+				let solarPanel = this.solarPanels[index];
 
 				// spheres
-				sphere.position.copy(point.position);
-				sphere.material.color = this.color;
+				solarPanel.position.copy(point.position);
+				solarPanel.material.color = this.color;
 
-				{ // edges
-					let edge = this.edges[index];
-
-					edge.material.color = this.color;
-
-					edge.position.copy(point.position);
-
-					edge.geometry.setPositions([
-						0, 0, 0,
-						...nextPoint.position.clone().sub(point.position).toArray(),
-					]);
-
-					edge.geometry.verticesNeedUpdate = true;
-					edge.geometry.computeBoundingSphere();
-					edge.computeLineDistances();
-					edge.visible = index < lastIndex || this.closed;
-					
-					if(!this.showEdges){
-						edge.visible = false;
-					}
-				}
-
-				{ // edge labels
-					let edgeLabel = this.edgeLabels[i];
-
-					let center = new Vector3().add(point.position);
-					center.add(nextPoint.position);
-					center = center.multiplyScalar(0.5);
-					let distance = point.position.distanceTo(nextPoint.position);
-
-					edgeLabel.position.copy(center);
-
-					let suffix = "";
-					if(this.lengthUnit != null && this.lengthUnitDisplay != null){
-						distance = distance / this.lengthUnit.unitspermeter * this.lengthUnitDisplay.unitspermeter;  //convert to meters then to the display unit
-						suffix = this.lengthUnitDisplay.code;
-					}
-
-					let txtLength = Utils.addCommas(distance.toFixed(2));
-					edgeLabel.setText(`${txtLength} ${suffix}`);
-					edgeLabel.visible = this.showDistances && (index < lastIndex || this.closed) && this.points.length >= 2 && distance > 0;
-				}
-
-				{ // angle labels
-					let angleLabel = this.angleLabels[i];
-					let angle = this.getAngleBetweenLines(point, previousPoint, nextPoint);
-
-					let dir = nextPoint.position.clone().sub(previousPoint.position);
-					dir.multiplyScalar(0.5);
-					dir = previousPoint.position.clone().add(dir).sub(point.position).normalize();
-
-					let dist = Math.min(point.position.distanceTo(previousPoint.position), point.position.distanceTo(nextPoint.position));
-					dist = dist / 9;
-
-					let labelPos = point.position.clone().add(dir.multiplyScalar(dist));
-					angleLabel.position.copy(labelPos);
-
-					let msg = Utils.addCommas((angle * (180.0 / Math.PI)).toFixed(1)) + '\u00B0';
-					angleLabel.setText(msg);
-
-					angleLabel.visible = this.showAngles && (index < lastIndex || this.closed) && this.points.length >= 3 && angle > 0;
-				}
 			}
-
-			{ // update height stuff
-				let heightEdge = this.heightEdge;
-				heightEdge.visible = this.showHeight;
-				this.heightLabel.visible = this.showHeight;
-
-				if (this.showHeight) {
-					let sorted = this.points.slice().sort((a, b) => a.position.z - b.position.z);
-					let lowPoint = sorted[0].position.clone();
-					let highPoint = sorted[sorted.length - 1].position.clone();
-					let min = lowPoint.z;
-					let max = highPoint.z;
-					let height = max - min;
-
-					let start = new Vector3(highPoint.x, highPoint.y, min);
-					let end = new Vector3(highPoint.x, highPoint.y, max);
-
-					heightEdge.position.copy(lowPoint);
-
-					heightEdge.geometry.setPositions([
-						0, 0, 0,
-						...start.clone().sub(lowPoint).toArray(),
-						...start.clone().sub(lowPoint).toArray(),
-						...end.clone().sub(lowPoint).toArray(),
-					]);
-
-					heightEdge.geometry.verticesNeedUpdate = true;
-					// heightEdge.geometry.computeLineDistances();
-					// heightEdge.geometry.lineDistancesNeedUpdate = true;
-					heightEdge.geometry.computeBoundingSphere();
-					heightEdge.computeLineDistances();
-
-					// heightEdge.material.dashSize = height / 40;
-					// heightEdge.material.gapSize = height / 40;
-
-					let heightLabelPosition = start.clone().add(end).multiplyScalar(0.5);
-					this.heightLabel.position.copy(heightLabelPosition);
-
-					let suffix = "";
-					if(this.lengthUnit != null && this.lengthUnitDisplay != null){
-						height = height / this.lengthUnit.unitspermeter * this.lengthUnitDisplay.unitspermeter;  //convert to meters then to the display unit
-						suffix = this.lengthUnitDisplay.code;
-					}
-
-					let txtHeight = Utils.addCommas(height.toFixed(2));
-					let msg = `${txtHeight} ${suffix}`;
-					this.heightLabel.setText(msg);
-				}
-			}
-
-			{ // update circle stuff
-				const circleRadiusLabel = this.circleRadiusLabel;
-				const circleRadiusLine = this.circleRadiusLine;
-				const circleLine = this.circleLine;
-				const circleCenter = this.circleCenter;
-
-				const circleOkay = this.points.length === 3;
-
-				circleRadiusLabel.visible = this.showCircle && circleOkay;
-				circleRadiusLine.visible = this.showCircle && circleOkay;
-				circleLine.visible = this.showCircle && circleOkay;
-				circleCenter.visible = this.showCircle && circleOkay;
-
-				if(this.showCircle && circleOkay){
-
-					const A = this.points[0].position;
-					const B = this.points[1].position;
-					const C = this.points[2].position;
-					const AB = B.clone().sub(A);
-					const AC = C.clone().sub(A);
-					const N = AC.clone().cross(AB).normalize();
-
-					const center = Potree.Utils.computeCircleCenter(A, B, C);
-					const radius = center.distanceTo(A);
-
-
-					const scale = radius / 20;
-					circleCenter.position.copy(center);
-					circleCenter.scale.set(scale, scale, scale);
-
-					//circleRadiusLine.geometry.vertices[0].set(0, 0, 0);
-					//circleRadiusLine.geometry.vertices[1].copy(B.clone().sub(center));
-
-					circleRadiusLine.geometry.setPositions( [
-						0, 0, 0,
-						...B.clone().sub(center).toArray()
-					] );
-
-					circleRadiusLine.geometry.verticesNeedUpdate = true;
-					circleRadiusLine.geometry.computeBoundingSphere();
-					circleRadiusLine.position.copy(center);
-					circleRadiusLine.computeLineDistances();
-
-					const target = center.clone().add(N);
-					circleLine.position.copy(center);
-					circleLine.scale.set(radius, radius, radius);
-					circleLine.lookAt(target);
-					
-					circleRadiusLabel.visible = true;
-					circleRadiusLabel.position.copy(center.clone().add(B).multiplyScalar(0.5));
-					circleRadiusLabel.setText(`${radius.toFixed(3)}`);
-
-				}
-			}
-
-			{ // update area label
-				this.areaLabel.position.copy(centroid);
-				this.areaLabel.visible = this.showArea && this.points.length >= 3;
-				let area = this.getArea();
-
-				let suffix = "";
-				if(this.lengthUnit != null && this.lengthUnitDisplay != null){
-					area = area / Math.pow(this.lengthUnit.unitspermeter, 2) * Math.pow(this.lengthUnitDisplay.unitspermeter, 2);  //convert to square meters then to the square display unit
-					suffix = this.lengthUnitDisplay.code;
-				}
-
-				let txtArea = Utils.addCommas(area.toFixed(1));
-				let msg =  `${txtArea} ${suffix}\u00B2`;
-				this.areaLabel.setText(msg);
-			}
-
 			// this.updateAzimuth();
 		};
 
 		raycast (raycaster, intersects) {
 			for (let i = 0; i < this.points.length; i++) {
-				let sphere = this.spheres[i];
+				let solarPanel = this.solarPanels[i];
 
-				sphere.raycast(raycaster, intersects);
+				solarPanel.raycast(raycaster, intersects);
 			}
 
 			// recalculate distances because they are not necessarely correct
@@ -55082,87 +54709,6 @@
 			}
 			intersects.sort(function (a, b) { return a.distance - b.distance; });
 		};
-
-		get showCoordinates () {
-			return this._showCoordinates;
-		}
-
-		set showCoordinates (value) {
-			this._showCoordinates = value;
-			this.update();
-		}
-
-		get showAngles () {
-			return this._showAngles;
-		}
-
-		set showAngles (value) {
-			this._showAngles = value;
-			this.update();
-		}
-
-		get showCircle () {
-			return this._showCircle;
-		}
-
-		set showCircle (value) {
-			this._showCircle = value;
-			this.update();
-		}
-
-		get showAzimuth(){
-			return this._showAzimuth;
-		}
-
-		set showAzimuth(value){
-			this._showAzimuth = value;
-			this.update();
-		}
-
-		get showEdges () {
-			return this._showEdges;
-		}
-
-		set showEdges (value) {
-			this._showEdges = value;
-			this.update();
-		}
-
-		get showHeight () {
-			return this._showHeight;
-		}
-
-		set showHeight (value) {
-			this._showHeight = value;
-			this.update();
-		}
-
-		get showArea () {
-			return this._showArea;
-		}
-
-		set showArea (value) {
-			this._showArea = value;
-			this.update();
-		}
-
-		get closed () {
-			return this._closed;
-		}
-
-		set closed (value) {
-			this._closed = value;
-			this.update();
-		}
-
-		get showDistances () {
-			return this._showDistances;
-		}
-
-		set showDistances (value) {
-			this._showDistances = value;
-			this.update();
-		}
 
 	}
 	class PolygonClipVolume extends Object3D{
@@ -69425,17 +68971,6 @@ void main() {
 					return alternative;
 				}
 			};
-
-			solarPanel.showDistances = (args.showDistances === null) ? true : args.showDistances;
-
-			solarPanel.showArea = pick(args.showArea, false);
-			solarPanel.showAngles = pick(args.showAngles, false);
-			solarPanel.showCoordinates = pick(args.showCoordinates, false);
-			solarPanel.showHeight = pick(args.showHeight, false);
-			solarPanel.showCircle = pick(args.showCircle, false);
-			solarPanel.showAzimuth = pick(args.showAzimuth, false);
-			solarPanel.showEdges = pick(args.showEdges, true);
-			solarPanel.closed = pick(args.closed, false);
 			solarPanel.maxMarkers = pick(args.maxMarkers, Infinity);
 
 			solarPanel.name = args.name || 'Solarpanel';
@@ -69456,7 +68991,7 @@ void main() {
 					}
 
 					this.viewer.inputHandler.startDragging(
-						solarPanel.spheres[solarPanel.spheres.length - 1]);
+						solarPanel.solarPanels[solarPanel.solarPanels.length - 1]);
 				} else if (e.button === MOUSE.RIGHT) {
 					cancel.callback();
 				}
@@ -69477,7 +69012,7 @@ void main() {
 
 			solarPanel.addMarker(new Vector3(0, 0, 0));
 			this.viewer.inputHandler.startDragging(
-				solarPanel.spheres[solarPanel.spheres.length - 1]);
+				solarPanel.solarPanels[solarPanel.solarPanels.length - 1]);
 
 			this.viewer.scene.addSolarPanel(solarPanel);
 
@@ -69494,166 +69029,6 @@ void main() {
 			let clientHeight = renderAreaSize.height;
 
 			this.light.position.copy(camera.position);
-
-			// make size independant of distance
-			for (let solarPanel of solarPanels) {
-				solarPanel.lengthUnit = this.viewer.lengthUnit;
-				solarPanel.lengthUnitDisplay = this.viewer.lengthUnitDisplay;
-				solarPanel.update();
-
-				updateAzimuth(this.viewer, solarPanel);
-
-				// spheres
-				for(let sphere of solarPanel.spheres){
-					let distance = camera.position.distanceTo(sphere.getWorldPosition(new Vector3()));
-					let pr = Utils.projectedRadius(1, camera, distance, clientWidth, clientHeight);
-					let scale = (15 / pr);
-					sphere.scale.set(scale, scale, scale);
-				}
-
-				// labels
-				let labels = solarPanel.edgeLabels.concat(solarPanel.angleLabels);
-				for(let label of labels){
-					let distance = camera.position.distanceTo(label.getWorldPosition(new Vector3()));
-					let pr = Utils.projectedRadius(1, camera, distance, clientWidth, clientHeight);
-					let scale = (70 / pr);
-
-					if(Potree.debug.scale){
-						scale = (Potree.debug.scale / pr);
-					}
-
-					label.scale.set(scale, scale, scale);
-				}
-
-				// coordinate labels
-				for (let j = 0; j < solarPanel.coordinateLabels.length; j++) {
-					let label = solarPanel.coordinateLabels[j];
-					let sphere = solarPanel.spheres[j];
-
-					let distance = camera.position.distanceTo(sphere.getWorldPosition(new Vector3()));
-
-					let screenPos = sphere.getWorldPosition(new Vector3()).clone().project(camera);
-					screenPos.x = Math.round((screenPos.x + 1) * clientWidth / 2);
-					screenPos.y = Math.round((-screenPos.y + 1) * clientHeight / 2);
-					screenPos.z = 0;
-					screenPos.y -= 30;
-
-					let labelPos = new Vector3( 
-						(screenPos.x / clientWidth) * 2 - 1, 
-						-(screenPos.y / clientHeight) * 2 + 1, 
-						0.5 );
-					labelPos.unproject(camera);
-					if(this.viewer.scene.cameraMode == CameraMode.PERSPECTIVE) {
-						let direction = labelPos.sub(camera.position).normalize();
-						labelPos = new Vector3().addVectors(
-							camera.position, direction.multiplyScalar(distance));
-
-					}
-					label.position.copy(labelPos);
-					let pr = Utils.projectedRadius(1, camera, distance, clientWidth, clientHeight);
-					let scale = (70 / pr);
-					label.scale.set(scale, scale, scale);
-				}
-
-				// height label
-				if (solarPanel.showHeight) {
-					let label = solarPanel.heightLabel;
-
-					{
-						let distance = label.position.distanceTo(camera.position);
-						let pr = Utils.projectedRadius(1, camera, distance, clientWidth, clientHeight);
-						let scale = (70 / pr);
-						label.scale.set(scale, scale, scale);
-					}
-
-					{ // height edge
-						let edge = solarPanel.heightEdge;
-
-						let sorted = solarPanel.points.slice().sort((a, b) => a.position.z - b.position.z);
-						let lowPoint = sorted[0].position.clone();
-						let highPoint = sorted[sorted.length - 1].position.clone();
-						let min = lowPoint.z;
-						let max = highPoint.z;
-
-						let start = new Vector3(highPoint.x, highPoint.y, min);
-						let end = new Vector3(highPoint.x, highPoint.y, max);
-
-						let lowScreen = lowPoint.clone().project(camera);
-						let startScreen = start.clone().project(camera);
-						let endScreen = end.clone().project(camera);
-
-						let toPixelCoordinates = v => {
-							let r = v.clone().addScalar(1).divideScalar(2);
-							r.x = r.x * clientWidth;
-							r.y = r.y * clientHeight;
-							r.z = 0;
-
-							return r;
-						};
-
-						let lowEL = toPixelCoordinates(lowScreen);
-						let startEL = toPixelCoordinates(startScreen);
-						let endEL = toPixelCoordinates(endScreen);
-
-						let lToS = lowEL.distanceTo(startEL);
-						let sToE = startEL.distanceTo(endEL);
-
-						edge.geometry.lineDistances = [0, lToS, lToS, lToS + sToE];
-						edge.geometry.lineDistancesNeedUpdate = true;
-
-						edge.material.dashSize = 10;
-						edge.material.gapSize = 10;
-					}
-				}
-
-				{ // area label
-					let label = solarPanel.areaLabel;
-					let distance = label.position.distanceTo(camera.position);
-					let pr = Utils.projectedRadius(1, camera, distance, clientWidth, clientHeight);
-
-					let scale = (70 / pr);
-					label.scale.set(scale, scale, scale);
-				}
-
-				{ // radius label
-					let label = solarPanel.circleRadiusLabel;
-					let distance = label.position.distanceTo(camera.position);
-					let pr = Utils.projectedRadius(1, camera, distance, clientWidth, clientHeight);
-
-					let scale = (70 / pr);
-					label.scale.set(scale, scale, scale);
-				}
-
-				{ // edges
-					const materials = [
-						solarPanel.circleRadiusLine.material,
-						...solarPanel.edges.map( (e) => e.material),
-						solarPanel.heightEdge.material,
-						solarPanel.circleLine.material,
-					];
-
-					for(const material of materials){
-						material.resolution.set(clientWidth, clientHeight);
-					}
-				}
-
-				if(!this.showLabels){
-
-					const labels = [
-						...solarPanel.sphereLabels, 
-						...solarPanel.edgeLabels, 
-						...solarPanel.angleLabels, 
-						...solarPanel.coordinateLabels,
-						solarPanel.heightLabel,
-						solarPanel.areaLabel,
-						solarPanel.circleRadiusLabel,
-					];
-
-					for(const label of labels){
-						label.visible = false;
-					}
-				}
-			}
 		}
 
 		render(){
@@ -72208,7 +71583,7 @@ void main() {
 			this.pointclouds = [];
 
 			this.measurements = [];
-      this.solarPanels = [];
+      		this.solarPanels = [];
 			this.profiles = [];
 			this.volumes = [];
 			this.polygonClipVolumes = [];
@@ -72471,7 +71846,7 @@ void main() {
 			}
 		}
 
-    addSolarPanel(solarPanel){
+    	addSolarPanel(solarPanel){
 			solarPanel.lengthUnit = this.lengthUnit;
 			solarPanel.lengthUnitDisplay = this.lengthUnitDisplay;
 			this.solarPanels.push(solarPanel);
@@ -72485,7 +71860,10 @@ void main() {
 		removeSolarPanel (solarPanel) {
 			let index = this.solarPanels.indexOf(solarPanel);
 			if (index > -1) {
-				this.solarPanels.splice(index, 1);
+				for (var item = solarPanel.points.length-1; item >= 0; item--) {
+					solarPanel.removeMarker(item);
+				}
+				this.solarPanels.splice(index,1);
 				this.dispatchEvent({
 					'type': 'solarPanel_removed',
 					'scene': this,
@@ -80129,7 +79507,7 @@ ENDSEC
 						showDistances: true,
 						showArea: true,
 						closed: true,
-						name: 'Area'});
+						name: 'SolarPanel'});
 
 					let measurementsRoot = $("#jstree_scene").jstree().get_json("solarpanels");
 					let jsonNode = measurementsRoot.children.find(child => child.data.uuid === solarPanel.uuid);
@@ -80493,7 +79871,7 @@ ENDSEC
 
 			let pcID = tree.jstree('create_node', "#", { "text": "<b>Point Clouds</b>", "id": "pointclouds"}, "last", false, false);
 			let measurementID = tree.jstree('create_node', "#", { "text": "<b>Measurements</b>", "id": "measurements" }, "last", false, false);
-      let solarPanelsID = tree.jstree('create_node', "#", { "text": "<b>SolarPanels</b>", "id": "solarpanels" }, "last", false, false);
+      		let solarPanelsID = tree.jstree('create_node', "#", { "text": "<b>SolarPanels</b>", "id": "solarpanels" }, "last", false, false);
 			let annotationsID = tree.jstree('create_node', "#", { "text": "<b>Annotations</b>", "id": "annotations" }, "last", false, false);
 			let otherID = tree.jstree('create_node', "#", { "text": "<b>Other</b>", "id": "other" }, "last", false, false);
 			let vectorsID = tree.jstree('create_node', "#", { "text": "<b>Vectors</b>", "id": "vectors" }, "last", false, false);
@@ -80501,7 +79879,7 @@ ENDSEC
 
 			tree.jstree("check_node", pcID);
 			tree.jstree("check_node", measurementID);
-      tree.jstree("check_node", solarPanelsID);
+      		tree.jstree("check_node", solarPanelsID);
 			tree.jstree("check_node", annotationsID);
 			tree.jstree("check_node", otherID);
 			tree.jstree("check_node", vectorsID);
@@ -80662,7 +80040,7 @@ ENDSEC
 				createNode(measurementID, measurement.name, icon, measurement);
 			};
 
-      let onSolarPanelAdded = (e) => {
+      		let onSolarPanelAdded = (e) => {
 				let solarPanel = e.solarPanel;
 				let icon = Utils.getSolarPanelsIcon();
 				createNode(solarPanelsID, solarPanel.name, icon, solarPanel);
@@ -80765,7 +80143,7 @@ ENDSEC
 
 			this.viewer.scene.addEventListener("pointcloud_added", onPointCloudAdded);
 			this.viewer.scene.addEventListener("measurement_added", onMeasurementAdded);
-      this.viewer.scene.addEventListener("solarPanel_added", onSolarPanelAdded);
+			this.viewer.scene.addEventListener("solarPanel_added", onSolarPanelAdded);
 			this.viewer.scene.addEventListener("profile_added", onProfileAdded);
 			this.viewer.scene.addEventListener("volume_added", onVolumeAdded);
 			this.viewer.scene.addEventListener("camera_animation_added", onCameraAnimationAdded);
@@ -80782,7 +80160,7 @@ ENDSEC
 				tree.jstree("delete_node", jsonNode.id);
 			};
 
-      let onSolarPanelRemoved = (e) => {
+      		let onSolarPanelRemoved = (e) => {
 				let measurementsRoot = $("#jstree_scene").jstree().get_json("solarpanels");
 				let jsonNode = measurementsRoot.children.find(child => child.data.uuid === e.solarPanel.uuid);
 				
