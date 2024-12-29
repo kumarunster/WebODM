@@ -54525,7 +54525,7 @@
 
 			let textureLoader = new THREE.TextureLoader();
 
-			this.texture = textureLoader.load(`${Potree.resourcePath}/icons/_solar_panels/Solarmodul_Symbol.png`);
+			this.texture = textureLoader.load(`${Potree.resourcePath}/icons/_solar_panels/solarmodul_symbol.png`);
 
 			this.solarPanels = [];
 
