@@ -54509,108 +54509,205 @@
 	}
 
 
-  class SolarPanel extends Object3D {
+  class SolarPanel extends Object3D{
 		constructor () {
 			super();
 
 			this.constructor.counter = (this.constructor.counter === undefined) ? 0 : this.constructor.counter + 1;
 
 			this.name = 'SolarPanel_' + this.constructor.counter;
+
 			this.points = [];
 
 			this.maxMarkers = Number.MAX_SAFE_INTEGER;
 			
-
 			this.rectangleGeometry = new PlaneGeometry(1.11, 1.76);
-			this.color = new Color(0xffff00);
+
+			let textureLoader = new THREE.TextureLoader();
+
+			this.texture = textureLoader.load(`${Potree.resourcePath}/icons/_solar_panels/solarmodul_symbol.png`);
+
 			this.solarPanels = [];
 
+			this.normal = null;
 		}
 
 		createRectangleMaterial () {
 			let sphereMaterial = new MeshBasicMaterial({
-				color: this.color,
+				map: this.texture,
 				side: DoubleSide,
 				transparent: true,
-				opacity: 0.7,
+				opacity: 0.8,
 			});
 
 			return sphereMaterial;
 		};
 
-		addMarker (point) {
-			if (point.x != null) {
-				point = {position: point};
+		addMarker(point, initialization) {
+			if(point.x != null){
+				point = { position: point };
 			}else if(point instanceof Array){
-				point = {position: new Vector3(...point)};
+				point = { position: new Vector3(...point) };
 			}
+
 			this.points.push(point);
 
-			// sphere
 			let solarPanel = new Mesh(this.rectangleGeometry, this.createRectangleMaterial());
-
 			this.add(solarPanel);
 			this.solarPanels.push(solarPanel);
 
-			{ // Event Listeners
+			let measure = new Measure();
+		
+			{
 				let drag = (e) => {
-					let I = Utils.getMousePointCloudIntersection(
+					let intersection = Utils.getMousePointCloudIntersection(
 						e.drag.end, 
 						e.viewer.scene.getActiveCamera(), 
 						e.viewer, 
 						e.viewer.scene.pointclouds,
-						{pickClipped: true});
-
-					if (I) {
+						{ pickClipped: true }
+					);
+		
+					if(intersection){
 						let i = this.solarPanels.indexOf(e.drag.object);
-						if (i !== -1) {
-							let point = this.points[i];
+						if(i !== -1){
+							if(initialization){
+								let position = intersection.location.clone();
+
+								let points = intersection.pointcloud;
+
+								let tolerance = 0.01; 
 							
-							// loop through current keys and cleanup ones that will be orphaned
-							for (let key of Object.keys(point)) {
-								if (!I.point[key]) {
-									delete point[key];
-								}
-							}
+								/* let matchingPointsX = this.getPointsMatching(points, position.y+0.2, position.z+0.2, tolerance, true); */
 
-							for (let key of Object.keys(I.point).filter(e => e !== 'position')) {
-								point[key] = I.point[key];
-							}
+								let matchingPointsX = this.getPointsMatching(points, position.x+0.5, position.y+0.5, tolerance, false);
+								let matchingPointsY = this.getPointsMatching(points, position.x-0.5, position.y, tolerance, false);
 
-							this.setPosition(i, I.location);
+								/* console.log("X-Coordinates:", matchingPointsX);
+								console.log("Y-Coordinates:", matchingPointsY); */
+
+								let iX = Math.floor(Math.random()*matchingPointsX.length);
+								let iY = Math.floor(Math.random()*matchingPointsY.length);
+								
+								/* console.log("X-Coordinates:", matchingPointsX[iX]);
+								console.log("Y-Coordinates:", matchingPointsY[iY]); */
+
+								let pointX = matchingPointsX[iX];
+								let pointY = matchingPointsY[iY];
+
+								/* this.add(measure); */
+
+/* 								measure.addMarker(pointX);
+								measure.addMarker(pointY);
+								measure.addMarker(position); */
+
+								let vectorAB = new THREE.Vector3().subVectors(pointX, position);
+								let vectorAC = new THREE.Vector3().subVectors(pointY, position);
+								let crossProduct = new THREE.Vector3().crossVectors(vectorAB, vectorAC);
+								
+								this.normal = crossProduct.normalize();
+							}
+							
+							this.setMarker(i, intersection.location, this.normal);
 						}
 					}
 				};
-
-				let drop = e => {
+		
+				let drop = (e) => {
 					let i = this.solarPanels.indexOf(e.drag.object);
 					if (i !== -1) {
 						this.dispatchEvent({
-							'type': 'marker_dropped',
-							'measurement': this,
+							'type': 'solarpanel_dropped',
+							'solarpanel': this,
 							'index': i
 						});
 					}
 				};
-
-				let mouseover = (e) => e.object.material.emissive.setHex(0x888888);
-				let mouseleave = (e) => e.object.material.emissive.setHex(0x000000);
-
+		
+				let mouseover = (e) => e.object.material.color.set(0xaeaeae);
+				let mouseleave = (e) => e.object.material.color.set(0xfcfcfc);
+		
 				solarPanel.addEventListener('drag', drag);
 				solarPanel.addEventListener('drop', drop);
 				solarPanel.addEventListener('mouseover', mouseover);
 				solarPanel.addEventListener('mouseleave', mouseleave);
 			}
-
+		
 			let event = {
-				type: 'marker_added',
-				measurement: this,
+				type: 'solarpanel_added',
+				solarPanel: this,
 				solarPanel: solarPanel
 			};
 			this.dispatchEvent(event);
 
-			this.setMarker(this.points.length - 1, point);
-		};
+			if(initialization){
+				this.setMarker(this.points.length - 1, point.position, point.normal || new Vector3(0, 1, 0)); // Default normal up
+			}else{
+				this.setMarker(this.points.length - 1, point.position, this.normal);
+			}
+		}
+
+		setMarker(index, position, normal) {
+			let point = this.points[index];
+			point.position.copy(position);
+
+			this.alignRectangleToSurface(index, position, normal);
+		
+			let event = {
+				type: 'solarpanel_moved',
+				solarPanel: this,
+				index: index,
+				position: position.clone()
+			};
+			this.dispatchEvent(event);
+		
+			this.update();
+		}
+
+		getPointsMatching(pointCloud, firstAxis, secondAxis, tolerance, isYZaxis) {
+			let matchingPoints = [];
+			let visibleNodes = pointCloud.visibleNodes;
+
+			visibleNodes.forEach(node => {
+				if(!node.geometryNode) return;
+
+				let positionBuffer = node.geometryNode.geometry.attributes.position.array;
+				let boundingBox = node.geometryNode.boundingBox;
+				let min = boundingBox.min;
+
+				for(let i = 0; i < positionBuffer.length; i += 3){
+					let px = positionBuffer[i]  + min.x;
+					let py = positionBuffer[i + 1]  + min.y;
+					let pz = positionBuffer[i + 2]  + min.z;
+
+					if(isYZaxis){
+						if(Math.abs(py - firstAxis) <= tolerance && Math.abs(pz - secondAxis) <= tolerance){
+							matchingPoints.push(new Vector3( px,  py, pz ));
+						}
+					}else{
+						if (Math.abs(px - firstAxis) <= tolerance && Math.abs(py - secondAxis) <= tolerance){
+							matchingPoints.push(new Vector3( px,  py, pz ));
+						}
+					}
+				}
+			});
+
+			return matchingPoints;
+		}
+		
+		alignRectangleToSurface(index, position, normal) {
+			let solarPanel = this.solarPanels[index];
+		
+			solarPanel.position.copy(position);
+		
+			let up = new Vector3(0,0,1);
+
+			let quaternion = new Quaternion();
+
+			quaternion.setFromUnitVectors(up, normal);
+		
+			solarPanel.setRotationFromQuaternion(quaternion);
+		}
 
 		removeMarker (index) {
 			this.points.splice(index, 1);
@@ -54621,29 +54718,15 @@
 
 			this.update();
 
-			this.dispatchEvent({type: 'marker_removed', measurement: this});
+			this.dispatchEvent({type: 'solarpanel_removed', solarPanel: this});
 		};
-
-		setMarker (index, point) {
-			this.points[index] = point;
-
-			let event = {
-				type: 'marker_moved',
-				measure:	this,
-				index:	index,
-				position: point.position.clone()
-			};
-			this.dispatchEvent(event);
-
-			this.update();
-		}
 
 		setPosition (index, position) {
 			let point = this.points[index];
 			point.position.copy(position);
 
 			let event = {
-				type: 'marker_moved',
+				type: 'solarpanel_moved',
 				measure:	this,
 				index:	index,
 				position: position.clone()
@@ -54684,12 +54767,10 @@
 
 				let solarPanel = this.solarPanels[index];
 
-				// spheres
 				solarPanel.position.copy(point.position);
-				solarPanel.material.color = this.color;
+				solarPanel.material.map = this.texture;
 
 			}
-			// this.updateAzimuth();
 		};
 
 		raycast (raycaster, intersects) {
@@ -54699,10 +54780,6 @@
 				solarPanel.raycast(raycaster, intersects);
 			}
 
-			// recalculate distances because they are not necessarely correct
-			// for scaled objects.
-			// see https://github.com/mrdoob/three.js/issues/5827
-			// TODO: remove this once the bug has been fixed
 			for (let i = 0; i < intersects.length; i++) {
 				let I = intersects[i];
 				I.distance = raycaster.ray.origin.distanceTo(I.point);
@@ -64621,6 +64698,19 @@ void main() {
 		return data;
 	}
 
+	function createSolarPanelData(solarPanel){
+
+		const data = {
+			uuid: solarPanel.uuid,
+			name: solarPanel.name,
+			points: solarPanel.points.map(p => p.position.toArray()),
+			normal: solarPanel.normal,
+			color: solarPanel.color
+		};
+
+		return data;
+	}
+
 	function createMeasurementData(measurement){
 
 		const data = {
@@ -64786,6 +64876,7 @@ void main() {
 			annotations: createAnnotationsData(viewer),
 			orientedImages: scene.orientedImages.map(createOrientedImagesData),
 			geopackages: scene.geopackages.map(createGeopackageData),
+			solarPanels: scene.solarPanels.map(createSolarPanelData),
 			// objects: createSceneContentData(viewer),
 		};
 
@@ -65418,6 +65509,28 @@ void main() {
 
 	}
 
+	function loadSolarPanels(viewer, data){
+
+		const duplicate = viewer.scene.solarPanels.find(solarPanel => solarPanel.uuid === data.uuid);
+		if(duplicate){
+			return;
+		}
+
+		const solarPanel = new SolarPanel();
+
+		solarPanel.uuid = data.uuid;
+		solarPanel.name = data.name;
+		solarPanel.normal = data.normal;
+
+		for(const point of data.points){
+			const pos = new Vector3(...point);
+			solarPanel.addMarker(pos,false);
+		}
+
+		viewer.scene.addSolarPanel(solarPanel);
+
+	}
+
 	function loadVolume(viewer, data){
 
 		const duplicate = viewer.scene.volumes.find(volume => volume.uuid === data.uuid);
@@ -65650,6 +65763,10 @@ void main() {
 
 		for(const profile of data.profiles){
 			loadProfile(viewer, profile);
+		}
+
+		for(const solarPanel of data.solarPanels){
+			loadSolarPanels(viewer, solarPanel);
 		}
 
 		if(data.orientedImages){
@@ -68954,68 +69071,65 @@ void main() {
 			e.scene.addEventListener('solarpanel_removed', this.onRemove);
 		}
 
-		startInsertion (args = {}) {
+		startInsertion(args = {}) {
 			let domElement = this.viewer.renderer.domElement;
-
+		
 			let solarPanel = new SolarPanel();
-
+		
 			this.dispatchEvent({
 				type: 'start_inserting_solarpanel',
 				solarPanel: solarPanel
 			});
-
-			const pick = (defaul, alternative) => {
-				if(defaul != null){
-					return defaul;
-				}else {
-					return alternative;
-				}
-			};
+		
+			const pick = (defaul, alternative) => (defaul != null ? defaul : alternative);
+			
 			solarPanel.maxMarkers = pick(args.maxMarkers, Infinity);
 
 			solarPanel.name = args.name || 'Solarpanel';
-
+		
 			this.scene.add(solarPanel);
-
+		
 			let cancel = {
 				removeLastMarker: solarPanel.maxMarkers > 3,
 				callback: null
 			};
-
+		
 			let insertionCallback = (e) => {
-				if (e.button === MOUSE.LEFT) {
-					solarPanel.addMarker(solarPanel.points[solarPanel.points.length - 1].position.clone());
+				if(e.button === MOUSE.LEFT){
+					solarPanel.addMarker(solarPanel.points[solarPanel.points.length - 1].position.clone(),false);
 
-					if (solarPanel.points.length >= solarPanel.maxMarkers) {
+					if(solarPanel.points.length >= solarPanel.maxMarkers){
 						cancel.callback();
 					}
 
 					this.viewer.inputHandler.startDragging(
 						solarPanel.solarPanels[solarPanel.solarPanels.length - 1]);
-				} else if (e.button === MOUSE.RIGHT) {
+
+				}else if(e.button === MOUSE.RIGHT){
 					cancel.callback();
 				}
 			};
-
-			cancel.callback = e => {
-				if (cancel.removeLastMarker) {
+		
+			cancel.callback = (e) => {
+				if(cancel.removeLastMarker && solarPanel.points.length > 0){
 					solarPanel.removeMarker(solarPanel.points.length - 1);
 				}
 				domElement.removeEventListener('mouseup', insertionCallback, false);
 				this.viewer.removeEventListener('cancel_insertions', cancel.callback);
 			};
-
-			if (solarPanel.maxMarkers > 1) {
+		
+			if(solarPanel.maxMarkers > 1){
 				this.viewer.addEventListener('cancel_insertions', cancel.callback);
 				domElement.addEventListener('mouseup', insertionCallback, false);
 			}
 
-			solarPanel.addMarker(new Vector3(0, 0, 0));
+			solarPanel.addMarker(new Vector3(0, 0, 0),true);
+
 			this.viewer.inputHandler.startDragging(
 				solarPanel.solarPanels[solarPanel.solarPanels.length - 1]);
-
+		
 			this.viewer.scene.addSolarPanel(solarPanel);
-
+		
 			return solarPanel;
 		}
 		
@@ -71847,25 +71961,23 @@ void main() {
 		}
 
     	addSolarPanel(solarPanel){
-			solarPanel.lengthUnit = this.lengthUnit;
-			solarPanel.lengthUnitDisplay = this.lengthUnitDisplay;
 			this.solarPanels.push(solarPanel);
 			this.dispatchEvent({
-				'type': 'solarPanel_added',
+				'type': 'solarpanel_added',
 				'scene': this,
 				'solarPanel': solarPanel
 			});
 		};
 
-		removeSolarPanel (solarPanel) {
+		removeSolarPanel(solarPanel){
 			let index = this.solarPanels.indexOf(solarPanel);
-			if (index > -1) {
-				for (var item = solarPanel.points.length-1; item >= 0; item--) {
+			if(index > -1){
+				for(var item = solarPanel.points.length-1; item == 0; item--){
 					solarPanel.removeMarker(item);
 				}
 				this.solarPanels.splice(index,1);
 				this.dispatchEvent({
-					'type': 'solarPanel_removed',
+					'type': 'solarpanel_removed',
 					'scene': this,
 					'solarPanel': solarPanel
 				});
@@ -71907,7 +72019,7 @@ void main() {
 			}
 		}
 
-    removeAllSolarPanels () {
+		removeAllSolarPanels () {
 			while (this.solarPanels.length > 0) {
 				this.removeSolarPanel(this.solarPanels[0]);
 			}
@@ -74605,6 +74717,49 @@ ENDSEC
 		}
 	};
 
+	class SolarPanelOptions extends MeasurePanel{
+		constructor(viewer, solarPanel, propertiesPanel){
+			super(viewer, solarPanel, propertiesPanel);
+
+			let removeIconPath = Potree.resourcePath + '/icons/remove.svg';
+			this.elContent = $(`
+			<div class="measurement_content selectable">
+				<span class="coordinates_table_container"></span>
+				<br>
+				<span class="attributes_table_container"></span>
+
+				<!-- ACTIONS -->
+				<div style="display: flex; margin-top: 12px">
+					<span></span>
+					<span style="flex-grow: 1"></span>
+					<img name="remove" class="button-icon" src="${removeIconPath}" style="width: 16px; height: 16px"/>
+				</div>
+			</div>
+		`);
+
+			this.elRemove = this.elContent.find("img[name=remove]");
+			this.elRemove.click( () => {
+				this.viewer.scene.removeSolarPanel(solarPanel);
+			});
+
+ 			this.propertiesPanel.addVolatileListener(solarPanel, "solarpanel_added", this._update);
+			this.propertiesPanel.addVolatileListener(solarPanel, "solarpanel_removed", this._update);
+			this.propertiesPanel.addVolatileListener(solarPanel, "solarpanel_moved", this._update);
+
+			this.update();
+		}
+
+		update(){
+			let elCoordiantesContainer = this.elContent.find('.coordinates_table_container');
+			elCoordiantesContainer.empty();
+			elCoordiantesContainer.append(this.createCoordinatesTable(this.measurement.points.map(p => p.position)));
+
+			let elAttributesContainer = this.elContent.find('.attributes_table_container');
+			elAttributesContainer.empty();
+			elAttributesContainer.append(this.createAttributesTable());
+		}
+	};
+
 	class PointPanel extends MeasurePanel{
 		constructor(viewer, measurement, propertiesPanel){
 			super(viewer, measurement, propertiesPanel);
@@ -75984,6 +76139,8 @@ ENDSEC
 
 			if(object instanceof PointCloudTree){
 				this.setPointCloud(object);
+			}else if(object instanceof SolarPanel){
+				this.setSolarPanel(object);
 			}else if(object instanceof Measure || object instanceof Profile || object instanceof Volume){
 				this.setMeasurement(object);
 			}else if(object instanceof Camera){
@@ -76842,6 +76999,11 @@ ENDSEC
 			let Panel = type.panel;
 
 			let panel = new Panel(this.viewer, object, this);
+			this.container.append(panel.elContent);
+		}
+
+		setSolarPanel(solarPanel){
+			let panel = new SolarPanelOptions(this.viewer, solarPanel, this);
 			this.container.append(panel.elContent);
 		}
 
@@ -79460,8 +79622,7 @@ ENDSEC
 			this.measuringTool = viewer.measuringTool;
 			this.profileTool = viewer.profileTool;
 			this.volumeTool = viewer.volumeTool;
-
-      this.solarPanelsTool = viewer.solarPanelsTool;
+			this.solarPanelsTool = viewer.solarPanelsTool;
 
 			this.dom = $("#sidebar_root");
 		}
@@ -79482,7 +79643,7 @@ ENDSEC
 		init(){
 
 			this.initAccordion();
-      this.initAppearance();
+      		this.initAppearance();
 			this.initToolbar();
 			this.initScene();
 			this.initNavigation();
@@ -79490,41 +79651,41 @@ ENDSEC
 			this.initClippingTool();
 			this.initSettings();
 
-      this.initSolarPanels();
+      		this.initSolarPanels();
 			
 			$('#potree_version_number').html(Potree.version.major + "." + Potree.version.minor + Potree.version.suffix);
 		}
 
 			
-    initSolarPanels() {
-      let elToolbar = $('#solar_panels_tools');
-			elToolbar.append(this.createToolIcon(
-				Potree.resourcePath + '/icons/_solar_panels/house_with_panels.svg',
-				'[title]tt.area_measurement',
-				() => {
-					$('#menu_measurements').next().slideDown();
-					let solarPanel = this.solarPanelsTool.startInsertion({
-						showDistances: true,
-						showArea: true,
-						closed: true,
-						name: 'SolarPanel'});
+		initSolarPanels() {
+		let elToolbar = $('#solar_panels_tools');
+				elToolbar.append(this.createToolIcon(
+					Potree.resourcePath + '/icons/_solar_panels/house_with_panels.svg',
+					'[title]tt.solar_panel',
+					() => {
+						$('#menu_measurements').next().slideDown();
+						let solarPanel = this.solarPanelsTool.startInsertion({
+							showDistances: false,
+							showCoordinates: true,
+							closed: true,
+							name: 'SolarPanel'});
 
-					let measurementsRoot = $("#jstree_scene").jstree().get_json("solarpanels");
-					let jsonNode = measurementsRoot.children.find(child => child.data.uuid === solarPanel.uuid);
-					$.jstree.reference(jsonNode.id).deselect_all();
-					$.jstree.reference(jsonNode.id).select_node(jsonNode.id);
-				}
-			));
+						let solarPanels = $("#jstree_scene").jstree().get_json("solarpanels");
+						let jsonNode = solarPanels.children.find(child => child.data.uuid === solarPanel.uuid);
+						$.jstree.reference(jsonNode.id).deselect_all();
+						$.jstree.reference(jsonNode.id).select_node(jsonNode.id);
+					}
+				));
 
-      // REMOVE ALL
-			elToolbar.append(this.createToolIcon(
-				Potree.resourcePath + '/icons/reset_tools.svg',
-				'[title]tt.remove_all_measurement',
-				() => {
-					this.viewer.scene.removeAllSolarPanels();
-					this.viewer.scene.annotations.removeAllChildren();
-				}
-			));
+      	// REMOVE ALL
+		elToolbar.append(this.createToolIcon(
+			Potree.resourcePath + '/icons/reset_tools.svg',
+			'[title]tt.remove_all_measurement',
+			() => {
+				this.viewer.scene.removeAllSolarPanels();
+				this.viewer.scene.annotations.removeAllChildren();
+			}
+		));
     }
 
 		initToolbar(){
@@ -80143,7 +80304,7 @@ ENDSEC
 
 			this.viewer.scene.addEventListener("pointcloud_added", onPointCloudAdded);
 			this.viewer.scene.addEventListener("measurement_added", onMeasurementAdded);
-			this.viewer.scene.addEventListener("solarPanel_added", onSolarPanelAdded);
+			this.viewer.scene.addEventListener("solarpanel_added", onSolarPanelAdded);
 			this.viewer.scene.addEventListener("profile_added", onProfileAdded);
 			this.viewer.scene.addEventListener("volume_added", onVolumeAdded);
 			this.viewer.scene.addEventListener("camera_animation_added", onCameraAnimationAdded);
@@ -80196,7 +80357,7 @@ ENDSEC
 			};
 
 			this.viewer.scene.addEventListener("measurement_removed", onMeasurementRemoved);
-      this.viewer.scene.addEventListener("solarPanel_removed", onSolarPanelRemoved);
+      		this.viewer.scene.addEventListener("solarpanel_removed", onSolarPanelRemoved);
 			this.viewer.scene.addEventListener("volume_removed", onVolumeRemoved);
 			this.viewer.scene.addEventListener("polygon_clip_volume_removed", onPolygonClipVolumeRemoved);
 			this.viewer.scene.addEventListener("profile_removed", onProfileRemoved);
@@ -80255,21 +80416,21 @@ ENDSEC
 
 				e.oldScene.removeEventListener("pointcloud_added", onPointCloudAdded);
 				e.oldScene.removeEventListener("measurement_added", onMeasurementAdded);
-        e.oldScene.removeEventListener("solarPanel_added", onSolarPanelAdded);
+        		e.oldScene.removeEventListener("solarpanel_added", onSolarPanelAdded);
 				e.oldScene.removeEventListener("profile_added", onProfileAdded);
 				e.oldScene.removeEventListener("volume_added", onVolumeAdded);
 				e.oldScene.removeEventListener("polygon_clip_volume_added", onVolumeAdded);
 				e.oldScene.removeEventListener("measurement_removed", onMeasurementRemoved);
-        e.oldScene.removeEventListener("solarPanel_removed", onSolarPanelRemoved);
+        		e.oldScene.removeEventListener("solarpanel_removed", onSolarPanelRemoved);
 
 				e.scene.addEventListener("pointcloud_added", onPointCloudAdded);
 				e.scene.addEventListener("measurement_added", onMeasurementAdded);
-        e.scene.addEventListener("solarPanel_added", onSolarPanelAdded);
+        		e.scene.addEventListener("solarpanel_added", onSolarPanelAdded);
 				e.scene.addEventListener("profile_added", onProfileAdded);
 				e.scene.addEventListener("volume_added", onVolumeAdded);
 				e.scene.addEventListener("polygon_clip_volume_added", onVolumeAdded);
 				e.scene.addEventListener("measurement_removed", onMeasurementRemoved);
-        e.scene.addEventListener("solarPanel_removed", onSolarPanelRemoved);
+        		e.scene.addEventListener("solarpanel_removed", onSolarPanelRemoved);
 			});
 
 		}
@@ -90956,6 +91117,7 @@ ENDSEC
 	exports.Volume = Volume;
 	exports.VolumeTool = VolumeTool;
 	exports.WorkerPool = WorkerPool;
+	exports.SolarPanel = SolarPanel;
 	exports.XHRFactory = XHRFactory;
 	exports.debug = debug;
 	exports.framenumber = framenumber;
