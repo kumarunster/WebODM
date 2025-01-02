@@ -54530,6 +54530,8 @@
 			this.solarPanels = [];
 
 			this.normal = null;
+
+			this.rotate = null;
 		}
 
 		createRectangleMaterial () {
@@ -54556,8 +54558,6 @@
 			this.add(solarPanel);
 			this.solarPanels.push(solarPanel);
 
-			let measure = new Measure();
-		
 			{
 				let drag = (e) => {
 					let intersection = Utils.getMousePointCloudIntersection(
@@ -54577,29 +54577,15 @@
 								let points = intersection.pointcloud;
 
 								let tolerance = 0.01; 
-							
-								/* let matchingPointsX = this.getPointsMatching(points, position.y+0.2, position.z+0.2, tolerance, true); */
 
 								let matchingPointsX = this.getPointsMatching(points, position.x+0.5, position.y+0.5, tolerance, false);
 								let matchingPointsY = this.getPointsMatching(points, position.x-0.5, position.y, tolerance, false);
 
-								/* console.log("X-Coordinates:", matchingPointsX);
-								console.log("Y-Coordinates:", matchingPointsY); */
-
 								let iX = Math.floor(Math.random()*matchingPointsX.length);
 								let iY = Math.floor(Math.random()*matchingPointsY.length);
-								
-								/* console.log("X-Coordinates:", matchingPointsX[iX]);
-								console.log("Y-Coordinates:", matchingPointsY[iY]); */
 
 								let pointX = matchingPointsX[iX];
 								let pointY = matchingPointsY[iY];
-
-								/* this.add(measure); */
-
-/* 								measure.addMarker(pointX);
-								measure.addMarker(pointY);
-								measure.addMarker(position); */
 
 								let vectorAB = new THREE.Vector3().subVectors(pointX, position);
 								let vectorAC = new THREE.Vector3().subVectors(pointY, position);
@@ -54623,7 +54609,36 @@
 						});
 					}
 				};
-		
+
+				let isDragging = false;
+				let currentSolarPanel = null;
+
+				let applyRotation = (event) => {
+					if (isDragging && currentSolarPanel) {
+						const deltaX = event.movementX;
+						const rotationSpeed = 0.05;
+						currentSolarPanel.rotation.z += deltaX * rotationSpeed;
+						this.rotate = currentSolarPanel.rotation.z;
+						viewer.render();
+					}
+				};
+
+				let startDrag = (event) => {
+					solarPanel.removeEventListener('drag', drag);
+					viewer.scene.removeEventListener('drag', drag);
+					isDragging = true;
+					currentSolarPanel = event.target;
+					viewer.renderer.domElement.addEventListener("mousemove", applyRotation);
+				};
+
+				let endDrag = () => {
+					solarPanel.addEventListener('drag', drag);
+					viewer.scene.addEventListener('drag', drag);
+					isDragging = false;
+					currentSolarPanel = null;
+					viewer.renderer.domElement.removeEventListener("mousemove", applyRotation);
+				};
+
 				let mouseover = (e) => e.object.material.color.set(0xaeaeae);
 				let mouseleave = (e) => e.object.material.color.set(0xfcfcfc);
 		
@@ -54631,6 +54646,8 @@
 				solarPanel.addEventListener('drop', drop);
 				solarPanel.addEventListener('mouseover', mouseover);
 				solarPanel.addEventListener('mouseleave', mouseleave);
+				solarPanel.addEventListener("mousedown", startDrag);
+				solarPanel.addEventListener("mouseup", endDrag);
 			}
 		
 			let event = {
@@ -54641,7 +54658,7 @@
 			this.dispatchEvent(event);
 
 			if(initialization){
-				this.setMarker(this.points.length - 1, point.position, point.normal || new Vector3(0, 1, 0)); // Default normal up
+				this.setMarker(this.points.length - 1, point.position, point.normal || new Vector3(0, 1, 0));
 			}else{
 				this.setMarker(this.points.length - 1, point.position, this.normal);
 			}
@@ -54705,8 +54722,12 @@
 			let quaternion = new Quaternion();
 
 			quaternion.setFromUnitVectors(up, normal);
-		
-			solarPanel.setRotationFromQuaternion(quaternion);
+			if(this.rotate != null){
+				solarPanel.setRotationFromQuaternion(quaternion);
+				solarPanel.rotation.z = this.rotate;
+			}else{
+				solarPanel.setRotationFromQuaternion(quaternion);
+			}
 		}
 
 		removeMarker (index) {
@@ -64705,6 +64726,7 @@ void main() {
 			name: solarPanel.name,
 			points: solarPanel.points.map(p => p.position.toArray()),
 			normal: solarPanel.normal,
+			rotate: solarPanel.rotate,
 			color: solarPanel.color
 		};
 
@@ -65521,6 +65543,7 @@ void main() {
 		solarPanel.uuid = data.uuid;
 		solarPanel.name = data.name;
 		solarPanel.normal = data.normal;
+		solarPanel.rotate = data.rotate;
 
 		for(const point of data.points){
 			const pos = new Vector3(...point);
