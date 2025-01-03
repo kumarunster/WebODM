@@ -54532,6 +54532,11 @@
 			this.normal = null;
 
 			this.rotate = null;
+
+			this.initialization = true;
+
+			this.isDragging = false;
+			this.currentSolarPanel = null;
 		}
 
 		createRectangleMaterial () {
@@ -54610,32 +54615,33 @@
 					}
 				};
 
-				let isDragging = false;
-				let currentSolarPanel = null;
-
 				let applyRotation = (event) => {
-					if (isDragging && currentSolarPanel) {
+					if (this.isDragging && this.currentSolarPanel && this.initialization) {
 						const deltaX = event.movementX;
-						const rotationSpeed = 0.05;
-						currentSolarPanel.rotation.z += deltaX * rotationSpeed;
-						this.rotate = currentSolarPanel.rotation.z;
+						const rotationSpeed = 0.03;
+						this.currentSolarPanel.rotation.z += deltaX * rotationSpeed;
+						this.rotate = this.currentSolarPanel.rotation.z;
 						viewer.render();
 					}
 				};
 
 				let startDrag = (event) => {
+					if(!this.initialization){
+						solarPanel.removeEventListener("mousedown", startDrag);
+						solarPanel.removeEventListener("mouseup", endDrag);
+						viewer.renderer.domElement.removeEventListener("mousemove", applyRotation);
+						solarPanel.addEventListener('drag', drag);
+					}
 					solarPanel.removeEventListener('drag', drag);
-					viewer.scene.removeEventListener('drag', drag);
-					isDragging = true;
-					currentSolarPanel = event.target;
+					this.isDragging = true;
+					this.currentSolarPanel = event.target;
 					viewer.renderer.domElement.addEventListener("mousemove", applyRotation);
 				};
 
 				let endDrag = () => {
 					solarPanel.addEventListener('drag', drag);
-					viewer.scene.addEventListener('drag', drag);
-					isDragging = false;
-					currentSolarPanel = null;
+					this.isDragging = false;
+					this.currentSolarPanel = null;
 					viewer.renderer.domElement.removeEventListener("mousemove", applyRotation);
 				};
 
@@ -54646,8 +54652,14 @@
 				solarPanel.addEventListener('drop', drop);
 				solarPanel.addEventListener('mouseover', mouseover);
 				solarPanel.addEventListener('mouseleave', mouseleave);
-				solarPanel.addEventListener("mousedown", startDrag);
-				solarPanel.addEventListener("mouseup", endDrag);
+				if(this.initialization){
+					solarPanel.addEventListener("mousedown", startDrag);
+					solarPanel.addEventListener("mouseup", endDrag);
+				}else{
+					solarPanel.removeEventListener("mousedown", startDrag);
+					solarPanel.removeEventListener("mouseup", endDrag);
+					viewer.renderer.domElement.removeEventListener("mousemove", applyRotation);
+				}
 			}
 		
 			let event = {
@@ -64727,6 +64739,7 @@ void main() {
 			points: solarPanel.points.map(p => p.position.toArray()),
 			normal: solarPanel.normal,
 			rotate: solarPanel.rotate,
+			initialization: solarPanel.initialization,
 			color: solarPanel.color
 		};
 
@@ -65544,6 +65557,7 @@ void main() {
 		solarPanel.name = data.name;
 		solarPanel.normal = data.normal;
 		solarPanel.rotate = data.rotate;
+		solarPanel.initialization = data.initialization;
 
 		for(const point of data.points){
 			const pos = new Vector3(...point);
@@ -69128,9 +69142,16 @@ void main() {
 					this.viewer.inputHandler.startDragging(
 						solarPanel.solarPanels[solarPanel.solarPanels.length - 1]);
 
+
+					if(solarPanel.initialization){
+						solarPanel.removeMarker(solarPanel.points.length - 2);
+						solarPanel.initialization = false;
+					}
+
 				}else if(e.button === MOUSE.RIGHT){
 					cancel.callback();
 				}
+
 			};
 		
 			cancel.callback = (e) => {
