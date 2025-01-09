@@ -54510,8 +54510,10 @@
 
 
   class SolarPanel extends Object3D{
-		constructor () {
+		constructor (width, height, domElement) {
 			super();
+
+			this.domElement = domElement;
 
 			this.constructor.counter = (this.constructor.counter === undefined) ? 0 : this.constructor.counter + 1;
 
@@ -54520,12 +54522,37 @@
 			this.points = [];
 
 			this.maxMarkers = Number.MAX_SAFE_INTEGER;
+
+			let elSolarPanel = $('#solar_panels_tools');
+
+			this.width = null;
+			this.height = null;
+
+			const textWidth = elSolarPanel.find("#solarWidth");
+			const textHeight = elSolarPanel.find("#solarHeight");
+
+			if((width && height) == null){
+				const widthValue = textWidth.val();
+				const heightValue = textHeight.val();
+				if(!widthValue.trim() || !heightValue.trim()){
+					this.width = 1.11;
+					this.height = 1.76;
+				}else{
+					let normalizedWidth = widthValue.trim().replace(',', '.');
+					let normalizedHeight = heightValue.trim().replace(',', '.');
+					this.width = parseFloat(normalizedWidth);
+					this.height = parseFloat(normalizedHeight);
+				}
+			}else{
+				this.width = width;
+				this.height = height;
+			}
 			
-			this.rectangleGeometry = new PlaneGeometry(1.11, 1.76);
+			this.rectangleGeometry = new PlaneGeometry(this.width, this.height);
 
 			let textureLoader = new THREE.TextureLoader();
 
-			this.texture = textureLoader.load(`${Potree.resourcePath}/icons/_solar_panels/solarmodul_symbol.png`);
+			this.texture = textureLoader.load(`${Potree.resourcePath}/icons/_solar_panels/solarmodul_symbol.svg`);
 
 			this.solarPanels = [];
 
@@ -54621,28 +54648,23 @@
 						const rotationSpeed = 0.03;
 						this.currentSolarPanel.rotation.z += deltaX * rotationSpeed;
 						this.rotate = this.currentSolarPanel.rotation.z;
-						viewer.render();
 					}
 				};
 
 				let startDrag = (event) => {
-					if(!this.initialization){
-						solarPanel.removeEventListener("mousedown", startDrag);
-						solarPanel.removeEventListener("mouseup", endDrag);
-						viewer.renderer.domElement.removeEventListener("mousemove", applyRotation);
-						solarPanel.addEventListener('drag', drag);
-					}
 					solarPanel.removeEventListener('drag', drag);
 					this.isDragging = true;
 					this.currentSolarPanel = event.target;
-					viewer.renderer.domElement.addEventListener("mousemove", applyRotation);
+					this.domElement.addEventListener("mousemove", applyRotation);
 				};
 
 				let endDrag = () => {
 					solarPanel.addEventListener('drag', drag);
 					this.isDragging = false;
 					this.currentSolarPanel = null;
-					viewer.renderer.domElement.removeEventListener("mousemove", applyRotation);
+					solarPanel.removeEventListener("mousedown", startDrag);
+					solarPanel.removeEventListener("mouseup", endDrag);
+					this.domElement.removeEventListener("mousemove", applyRotation);
 				};
 
 				let mouseover = (e) => e.object.material.color.set(0xaeaeae);
@@ -54655,10 +54677,6 @@
 				if(this.initialization){
 					solarPanel.addEventListener("mousedown", startDrag);
 					solarPanel.addEventListener("mouseup", endDrag);
-				}else{
-					solarPanel.removeEventListener("mousedown", startDrag);
-					solarPanel.removeEventListener("mouseup", endDrag);
-					viewer.renderer.domElement.removeEventListener("mousemove", applyRotation);
 				}
 			}
 		
@@ -55731,7 +55749,7 @@
 			}
 		}
 
-    static getSolarPanelsIcon(){
+    	static getSolarPanelsIcon(){
 			return `${Potree.resourcePath}/icons/_solar_panels/house_with_panels.svg`;
 		}
 
@@ -64740,7 +64758,9 @@ void main() {
 			normal: solarPanel.normal,
 			rotate: solarPanel.rotate,
 			initialization: solarPanel.initialization,
-			color: solarPanel.color
+			color: solarPanel.color,
+			width: solarPanel.width,
+			height: solarPanel.height
 		};
 
 		return data;
@@ -65551,7 +65571,7 @@ void main() {
 			return;
 		}
 
-		const solarPanel = new SolarPanel();
+		const solarPanel = new SolarPanel(data.width, data.height);
 
 		solarPanel.uuid = data.uuid;
 		solarPanel.name = data.name;
@@ -69111,7 +69131,7 @@ void main() {
 		startInsertion(args = {}) {
 			let domElement = this.viewer.renderer.domElement;
 		
-			let solarPanel = new SolarPanel();
+			let solarPanel = new SolarPanel(null, null, domElement);
 		
 			this.dispatchEvent({
 				type: 'start_inserting_solarpanel',
@@ -79702,35 +79722,53 @@ ENDSEC
 
 			
 		initSolarPanels() {
-		let elToolbar = $('#solar_panels_tools');
-				elToolbar.append(this.createToolIcon(
-					Potree.resourcePath + '/icons/_solar_panels/house_with_panels.svg',
-					'[title]tt.solar_panel',
-					() => {
-						$('#menu_measurements').next().slideDown();
-						let solarPanel = this.solarPanelsTool.startInsertion({
-							showDistances: false,
-							showCoordinates: true,
-							closed: true,
-							name: 'SolarPanel'});
+			let elToolbar = $('#solar_panels_tools');
+			
+			elToolbar.append(this.createToolIcon(
+				Potree.resourcePath + '/icons/_solar_panels/house_with_panels.svg',
+				'[title]tt.solar_panel',
+				() => {
+					$('#menu_measurements').next().slideDown();
+					let solarPanel = this.solarPanelsTool.startInsertion({
+						showDistances: false,
+						showCoordinates: true,
+						closed: true,
+						name: 'SolarPanel'});
 
-						let solarPanels = $("#jstree_scene").jstree().get_json("solarpanels");
-						let jsonNode = solarPanels.children.find(child => child.data.uuid === solarPanel.uuid);
-						$.jstree.reference(jsonNode.id).deselect_all();
-						$.jstree.reference(jsonNode.id).select_node(jsonNode.id);
-					}
-				));
+					let solarPanels = $("#jstree_scene").jstree().get_json("solarpanels");
+					let jsonNode = solarPanels.children.find(child => child.data.uuid === solarPanel.uuid);
+					$.jstree.reference(jsonNode.id).deselect_all();
+					$.jstree.reference(jsonNode.id).select_node(jsonNode.id);
+				}
+			));
 
-      	// REMOVE ALL
-		elToolbar.append(this.createToolIcon(
-			Potree.resourcePath + '/icons/reset_tools.svg',
-			'[title]tt.remove_all_measurement',
-			() => {
-				this.viewer.scene.removeAllSolarPanels();
-				this.viewer.scene.annotations.removeAllChildren();
-			}
-		));
-    }
+			elToolbar.append(this.createToolIcon(
+				Potree.resourcePath + '/icons/reset_tools.svg',
+				'[title]tt.remove_all_measurement',
+				() => {
+					this.viewer.scene.removeAllSolarPanels();
+					this.viewer.scene.annotations.removeAllChildren();
+				}
+			));
+
+			elToolbar.append(
+			this.elWidth = $(`
+				<div style="display: flex; align-items: center; margin-bottom: 10px;">
+					<label for="solarWidth" style="margin-right: 10px; font-weight: bold;">Width:</label>
+					<input id="solarWidth" name="solarWidth" value="1.11" style="flex: 1; padding: 5px; border: 1px solid #ccc; border-radius: 4px; width: 80px;">
+        		</div>
+				`)
+			);
+
+			elToolbar.append(
+				this.elHeight = $(`
+					<div style="display: flex; align-items: center;">
+						<label for="solarHeight" style="margin-right: 10px; font-weight: bold;">Height:</label>
+						<input id="solarHeight" name="solarHeight" value="1.76" style="flex: 1; padding: 5px; border: 1px solid #ccc; border-radius: 4px; width: 80px;">
+					</div>
+				`)
+			);
+    	}
 
 		initToolbar(){
 
